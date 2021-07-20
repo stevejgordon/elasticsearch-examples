@@ -8,23 +8,25 @@ namespace ElasticsearchExamples
 {
     internal class Program
     {
+        public static IElasticClient Client = new ElasticClient();
+
         private static async Task Main(string[] args)
         {
             const string indexName = "stock-demo-v1";
             const string aliasName = "stock-demo";
 
-            var client = new ElasticClient();
-
-            var existsResponse = await client.Indices.ExistsAsync(indexName);
+            var existsResponse = await Client.Indices.ExistsAsync(indexName);
 
             if (!existsResponse.Exists)
             {
-                var newIndexResponse = await client.Indices.CreateAsync(indexName, i =>
-                    i.Map(m => m
+                var newIndexResponse = await Client.Indices.CreateAsync(indexName, i => i
+                    .Map(m => m
                         .AutoMap<StockData>()
-                        .Properties<StockData>(p => p.Keyword(k => k.Name(f => f.Symbol)))));
+                        .Properties<StockData>(p => p.Keyword(k => k.Name(f => f.Symbol))))
+                    .Settings(s => s.NumberOfShards(1).NumberOfReplicas(0)));
+                if (!newIndexResponse.IsValid || newIndexResponse.Acknowledged is false) throw new Exception("Oh no!!");
 
-                var bulkAll = client.BulkAll(ReadStockData(), r => r
+                var bulkAll = Client.BulkAll(ReadStockData(), r => r
                     .Index(indexName)
                     .BackOffRetries(2)
                     .BackOffTime("30s")
@@ -33,7 +35,8 @@ namespace ElasticsearchExamples
 
                 bulkAll.Wait(TimeSpan.FromMinutes(10), r => Console.WriteLine("Data indexed"));
 
-                var aliasResponse = await client.Indices.PutAliasAsync(indexName, aliasName);
+                var aliasResponse = await Client.Indices.PutAliasAsync(indexName, aliasName);
+                if (!aliasResponse.IsValid) throw new Exception("Oh no!!");
             }
         }
 
