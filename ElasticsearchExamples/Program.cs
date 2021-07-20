@@ -1,14 +1,14 @@
-﻿using Nest;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Nest;
 
 namespace ElasticsearchExamples
 {
-    class Program
+    internal class Program
     {
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
             const string indexName = "stock-demo-v1";
             const string aliasName = "stock-demo";
@@ -33,7 +33,7 @@ namespace ElasticsearchExamples
 
                 bulkAll.Wait(TimeSpan.FromMinutes(10), r => Console.WriteLine("Data indexed"));
 
-                var aliasResponse = client.Indices.PutAlias(indexName, aliasName);
+                var aliasResponse = await client.Indices.PutAliasAsync(indexName, aliasName);
             }
         }
 
@@ -43,10 +43,7 @@ namespace ElasticsearchExamples
             var file = new StreamReader("c:\\stock-data\\all_stocks_5yr.csv");
 
             string line;
-            while((line = file.ReadLine()) is not null)
-            {
-                yield return new StockData(line);
-            }
+            while ((line = file.ReadLine()) is not null) yield return new StockData(line);
         }
     }
 
@@ -54,10 +51,10 @@ namespace ElasticsearchExamples
     {
         private static readonly Dictionary<string, string> CompanyLookup = new()
         {
-            { "AAL", "American Airlines Group Inc" },
-            { "MSFT", "Microsoft Corporation" },
-            { "AME", "AMETEK, Inc." },
-            { "M", "Macy's Inc" }
+            {"AAL", "American Airlines Group Inc"},
+            {"MSFT", "Microsoft Corporation"},
+            {"AME", "AMETEK, Inc."},
+            {"M", "Macy's Inc"}
         };
 
         public StockData(string dataLine)
