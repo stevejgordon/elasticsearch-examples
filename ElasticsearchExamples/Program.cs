@@ -2,24 +2,25 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using Elasticsearch.Net;
 using Nest;
 
 namespace ElasticsearchExamples
 {
     internal class Program
     {
-        public static IElasticClient Client = new ElasticClient();
+        const string IndexName = "stock-demo-v1";
+        const string AliasName = "stock-demo";
+
+        public static IElasticClient Client = new ElasticClient(new ConnectionSettings().DefaultIndex(IndexName));
 
         private static async Task Main(string[] args)
         {
-            const string indexName = "stock-demo-v1";
-            const string aliasName = "stock-demo";
-
-            var existsResponse = await Client.Indices.ExistsAsync(indexName);
+            var existsResponse = await Client.Indices.ExistsAsync(IndexName);
 
             if (!existsResponse.Exists)
             {
-                var newIndexResponse = await Client.Indices.CreateAsync(indexName, i => i
+                var newIndexResponse = await Client.Indices.CreateAsync(IndexName, i => i
                     .Map(m => m
                         .AutoMap<StockData>()
                         .Properties<StockData>(p => p.Keyword(k => k.Name(f => f.Symbol))))
@@ -27,7 +28,7 @@ namespace ElasticsearchExamples
                 if (!newIndexResponse.IsValid || newIndexResponse.Acknowledged is false) throw new Exception("Oh no!!");
 
                 var bulkAll = Client.BulkAll(ReadStockData(), r => r
-                    .Index(indexName)
+                    .Index(IndexName)
                     .BackOffRetries(2)
                     .BackOffTime("30s")
                     .MaxDegreeOfParallelism(4)
@@ -35,7 +36,7 @@ namespace ElasticsearchExamples
 
                 bulkAll.Wait(TimeSpan.FromMinutes(10), r => Console.WriteLine("Data indexed"));
 
-                var aliasResponse = await Client.Indices.PutAliasAsync(indexName, aliasName);
+                var aliasResponse = await Client.Indices.PutAliasAsync(IndexName, AliasName);
                 if (!aliasResponse.IsValid) throw new Exception("Oh no!!");
             }
         }
